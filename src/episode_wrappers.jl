@@ -135,52 +135,56 @@ Alias for `RageQuitWrapper`
 """
 const PointlessLifeWrapper = RageQuitWrapper
 
-
 """
-Take action on reset for environments that are stuck until firing.
+Press the fire button on reset for environments that are stuck until firing.
 """
-struct FireResetEnv <: AbstractGymWrapper
-    fireaction::Int
+struct FireOnReset <: AbstractGymWrapper
+    env::AbstractGymEnv
+    fire_action::Int
 end
-function FireResetEnv(env::AbstractGymEnv)
+
+function FireOnReset(env::AbstractGymEnv, fire_action=1)
     action_meanings = gymenv(env).pygym[:unwrapped][:get_action_meanings]()
-    @assert action_meanings[2] == 'FIRE'
+    @assert action_meanings[fire_action+1] == 'FIRE' # 1-based so +1
     @assert length(action_meanings) >= 3
-    FireResetEnv(1) # 2 but 1-based so 1 getit?
+    FireOnReset(env, fire_action)
 end
 
-function reset!(wrpenv::FireResetEnv)
-    #XXX check all reset!s are calling the wrapped env
-        reset!(wrpenv.env)
-        obs, _, done, _ = self.env.step(1)
-        if done:
-            self.env.reset(**kwargs)
-        obs, _, done, _ = self.env.step(2)
-        if done:
-            self.env.reset(**kwargs)
-        return obs
+function reset!(wrpenv::FireOnReset)
+    s = reset!(wrpenv.env)
+    obs, r = Reinforce.step!(wrpenv.env, wrpenv.fire_action)
+    done = Reinforce.finished(wrpenv.env)
+    return obs
+end
 
-class FireNewLifeEnv(gym.Wrapper):
-    def __init__(self, env, fire_action = 1):
-        """Fire at the end of each life, required for some envs, e.g. breakout
-        when not wrapped in an EpisodicLifeWrapper"""
-        gym.Wrapper.__init__(self, env)
-        self.fire_action = fire_action
-        assert env.unwrapped.get_action_meanings()[self.fire_action] == 'FIRE'
-        assert len(env.unwrapped.get_action_meanings()) >= 3
-        self.lives = 0
-        self.fire  = True
+"""
+Fire at the end of each life, required for some envs, e.g. breakout
+when not wrapped in an EpisodicLifeWrapper
+"""
+mutable struct FireOnNewLife <: AbstractGymWrapper
+    env::AbstractGymEnv
+    fire_action::Int
+    lives::Int
+    openfire::Bool
+end
 
-    def _step(self, action):
-        if self.fire:
-            self.env.step(self.fire_action)
-            self.fire = False
-        obs, reward, done, info = self.env.step(action)
+function FireOnNewLife(env::AbstractGymEnv, fire_action = 1):
+    @assert env.unwrapped.get_action_meanings()[fire_action+1] == 'FIRE'
+    @assert length(env.unwrapped.get_action_meanings()) >= 3
+    FireOnNewLife(env, fire_action, 0, true)
+end
 
-        # check current lives, make loss of life terminal,
-        # then update lives to handle bonus lives
-        lives = self.env.unwrapped.ale.lives()
-        if lives < self.lives:
-            self.fire  = True
-        self.lives = lives
-        return obs, reward, done, info
+function Reinforce.step!(wrpenv::FireOnNewLife, action):
+    if wrpenv.openfire
+        Reinforce.step!(wrpenv.env, wrpenv.fire_action)
+        wrpenv.openfire = False
+    end
+    s, reward = Reinforce.step!(wrpenv.env, action)
+
+    # check current lives, lose life => openfire on next step!,
+    # then update lives to handle bonus lives
+    lives = ale_lives(wrpenv)
+    lives < wrpenv.lives && (wrpenv.openfire = True)
+    wrpenv.lives = lives
+    s, reward
+end
