@@ -20,8 +20,8 @@ Will wrap the env so it's essentially like Deepmind's work in
 Access the unwrapped env with
 ```
 gymenv(env) # Julia wrapper
-gymenv(env).pyenv # python version
-gymenv(env).pyenv[:unwrapped] # python fully unwrapped version
+gymenv(env).pyenv # python env (usually wrapped with TimeLimit etc.)
+gymenv(env).pyenv[:unwrapped] # fully unwrapped env
 ```
 
 Access a particular wrapper with, e.g.:
