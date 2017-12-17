@@ -8,6 +8,15 @@ Some of the wrappers were adapted from https://github.com/openai/baselines/blob/
 ```
 Pkg.clone("https://github.com/JobJob/GymWrappers.jl")
 ```
+might be needed
+```
+Pkg.rm("OpenAIGym")
+Pkg.clone("https://github.com/JobJob/OpenAIGym.jl")
+    Pkg.checkout("OpenAIGym", "total-reward")
+Pkg.rm("Reinforce")
+Pkg.clone("https://github.com/JobJob/Reinforce.jl")
+    Pkg.checkout("Reinforce", "total-reward")
+```
 
 ### Basic Usage
 ```
