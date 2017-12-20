@@ -24,7 +24,7 @@ wrapper, as this wrapper does the skipping instead of the gym.
 This wrapper is both an observation wrapper and an action wrapper, but we'll
 put it in this file because the observation wrapper file is pretty long already
 =#
-struct MaxAndSkipWrapper{T, N} <: AbstractGymWrapper
+mutable struct MaxAndSkipWrapper{T, N} <: AbstractGymWrapper
     env::AbstractGymEnv
     nskip::Int
     done::Bool

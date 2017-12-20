@@ -1,8 +1,8 @@
-export EpisodicLifeWrapper, PointLifeWrapper, RageQuitWrapper
+export EpisodicLifeWrapper, RageQuitWrapper, PointLifeWrapper, PointlessLifeWrapper, FireOnReset, FireOnNewLife
 
-# --------------------------------
+# ################################
 # Episodic Life Wrapper
-# --------------------------------
+# ################################
 """
 `EpisodicLifeWrapper(env)`
 
@@ -47,7 +47,8 @@ function Reinforce.finished(wrpenv::EpisodicLifeWrapper, s)
     wrpenv.lifelost || wrpenv.was_real_done
 end
 
-"""Reset only when lives are exhausted.
+"""
+Reset only when lives are exhausted.
 This way all states are still reachable even though lives are episodic,
 and the learner need not know about any of this behind-the-scenes.
 """
@@ -67,35 +68,30 @@ function Reinforce.reset!(wrpenv::EpisodicLifeWrapper)
 end
 
 
-# --------------------------------
+# ################################
 # RageQuitWrapper
-# --------------------------------
+# ################################
 """
 ```
-RageQuitWrapper(env::AbstractGymEnv, points_lost::Int,
-                points_lost_limit::Int, point_lost_test=(env,r)->(r < 0))
+RageQuitWrapper(env::AbstractGymEnv, points_lost_limit::Int=1,
+                point_lost_test=(env,r)->(r < 0))
 ```
 Rage quit (end the episode immediately) if agent loses more than
 `points_lost_limit` points. The function point_lost_test(env, r) is used to
 determine if the point was lost, it defaults to just returning whether the
 reward was less than 0.0
 """
-mutable struct RageQuitWrapper
+mutable struct RageQuitWrapper <: AbstractGymWrapper
     env::AbstractGymEnv
     points_lost_limit::Int
     point_lost_test::Function
     points_lost::Int
 end
 
-function PointLifeWrapper(env::AbstractGymEnv,
-                          points_lost_limit::Int,
-                          point_lost_test=(env, r)->(r <= 0.0))
-    PointLifeWrapper(env, points_lost_limit, 0, point_lost_test)
-end
-
-function RageQuitWrapper(env::AbstractGymEnv, points_lost_limit::Int,
+function RageQuitWrapper(env::AbstractGymEnv,
+                         points_lost_limit::Int=1,
                          point_lost_test=(env,r)->(r < 0))
-    RageQuitWrapper(env, 0, point_lost_test, 0, false)
+    RageQuitWrapper(env, points_lost_limit, point_lost_test, 0)
 end
 
 function Reinforce.step!(wrpenv::RageQuitWrapper, s, a)
@@ -115,9 +111,9 @@ function Reinforce.reset!(wrpenv::RageQuitWrapper)
     Reinforce.reset!(wrpenv.env)
 end
 
-# --------------------------------
-# Pointless Life Wrapper
-# --------------------------------
+#################################
+# Point Life Wrapper
+#################################
 """
 `PointLifeWrapper(env, points_lost_limit, point_lost_test=(env, r)->(r <= 0.0))`
 
@@ -125,9 +121,9 @@ Alias for `RageQuitWrapper`
 """
 const PointLifeWrapper = RageQuitWrapper
 
-# --------------------------------
+#################################
 # Pointless Life Wrapper
-# --------------------------------
+#################################
 """
 `PointlessLifeWrapper(env, points_lost_limit, point_lost_test=(env, r)->(r <= 0.0))`
 
@@ -145,7 +141,7 @@ end
 
 function FireOnReset(env::AbstractGymEnv, fire_action=1)
     action_meanings = gymenv(env).pygym[:unwrapped][:get_action_meanings]()
-    @assert action_meanings[fire_action+1] == 'FIRE' # 1-based so +1
+    @assert action_meanings[fire_action+1] == "FIRE" # 1-based so +1
     @assert length(action_meanings) >= 3
     FireOnReset(env, fire_action)
 end
@@ -169,12 +165,12 @@ mutable struct FireOnNewLife <: AbstractGymWrapper
 end
 
 function FireOnNewLife(env::AbstractGymEnv, fire_action = 1):
-    @assert env.unwrapped.get_action_meanings()[fire_action+1] == 'FIRE'
+    @assert env.unwrapped.get_action_meanings()[fire_action+1] == "FIRE"
     @assert length(env.unwrapped.get_action_meanings()) >= 3
     FireOnNewLife(env, fire_action, 0, true)
 end
 
-function Reinforce.step!(wrpenv::FireOnNewLife, action):
+function Reinforce.step!(wrpenv::FireOnNewLife, action)
     if wrpenv.openfire
         Reinforce.step!(wrpenv.env, wrpenv.fire_action)
         wrpenv.openfire = False

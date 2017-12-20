@@ -1,3 +1,5 @@
+import Images: imresize, normedview, N0f8
+import ImageTransformations: imresize!
 export GreyMeanWrapper, GreyChanWrapper, DownsizeWrapper, MultiFrameWrapper
 
 # --------------------------------
@@ -226,7 +228,7 @@ end
 
 function Reinforce.step!(wrpenv::DownsizeWrapper, args...)
     r, s = Reinforce.step!(wrpenv.env, args...)
-    ImageTransformations.imresize!(wrpenv.scaled_img, state(wrpenv.env))
+    imresize!(wrpenv.scaled_img, state(wrpenv.env))
     r, state(wrpenv)
 end
 

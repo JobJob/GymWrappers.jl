@@ -1,6 +1,8 @@
-# --------------------------------
+export ActionEntropyWrapper, action_entropy_env, SurvivalRewardWrapper, AbstractRewardWrapper
+
+##################################
 # Reward Modifying Wrappers
-# --------------------------------
+##################################
 
 abstract type AbstractRewardWrapper <: AbstractGymWrapper end
 macro reward_fields()
@@ -60,9 +62,9 @@ rage_reward(env)     = wrp_total_reward(RageQuitWrapper, env)
 
 gym_reward(env) = total_reward(gymenv(env))
 
-# --------------------------------
+##################################
 # SurvivalRewardWrapper()
-# --------------------------------
+##################################
 """
 ```
 SurvivalRewardWrapper(env::AbstractGymEnv, reward_thresh::Float64,
@@ -119,9 +121,9 @@ end
 elapsed_steps(wrpenv::AbstractGymWrapper) = gymenv(wrpenv).pyenv[:_elapsed_steps]
 elapsed_steps(env::GymEnv) = env.pyenv[:_elapsed_steps]
 
-# --------------------------------
+##################################
 # ActionEntropyWrapper
-# --------------------------------
+##################################
 """
 Gives reward for diversity of actions. Variety is the spice of (artificial)
 life. The Action entropy wrapper isn't implemented like a standard

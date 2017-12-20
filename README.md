@@ -51,9 +51,9 @@ better_wrapper_specs = Dict{String, Vector{Pair{Type{T} where T <: AbstractGymWr
     "deepmind_defaults"=>[
         EpisodicLifeWrapper=>(),
         GreyChanWrapper=>(2,),
-        DownsizeWrapper=>((0.4, 0.525),), # (210,160) -> 84x84 like in deepmind
-        MaxAndSkipWrapper=>(4), # skip 4 frames
-        MultiFrameWrapper=>(4,),
+        DownsizeWrapper=>((0.4, 0.525),), # (210, 160) -> (84, 84)
+        MultiFrameWrapper=>(4,), # stack last 4 frames
+        MaxAndSkipWrapper=>(4,), # repeat action for 4 frames
     ]
 )
 

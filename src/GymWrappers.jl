@@ -1,7 +1,8 @@
+module GymWrappers
+
 using OpenAIGym
 import OpenAIGym: AbstractGymEnv
 import Reinforce: reward, total_reward
-import Images: imresize, N0f8
 
 abstract type AbstractGymWrapper <: AbstractGymEnv end
 
@@ -68,9 +69,11 @@ function maybe_wrap(env::AbstractGymEnv; wrapper_specs=default_wrapper_specs,
     wrapped_env
 end
 
+include("misc_utils.jl")
 include("reward_wrappers.jl")
 include("observation_wrappers.jl")
-include("action_wrappers")
+include("action_wrappers.jl")
+include("episode_wrappers.jl")
 
 
 # --------------------------------
@@ -81,9 +84,9 @@ default_wrapper_specs = Dict{String, Vector{Pair{Type{T} where T <: AbstractGymW
         EpisodicLifeWrapper=>(),
         GreyMeanWrapper=>(),
         # GreyChanWrapper=>(2,),
-        DownsizeWrapper=>((0.4, 0.525),), # (210,160) -> 84x84 like in deepmind
-        MaxAndSkipWrapper=>(4), # skip 4 frames
-        MultiFrameWrapper=>(4,),
+        DownsizeWrapper=>((0.4, 0.525),), # (210, 160) -> (84, 84)
+        MultiFrameWrapper=>(4,), # stack last 4 frames
+        MaxAndSkipWrapper=>(4,), # repeat action for 4 frames
     ]
 )
 
@@ -104,3 +107,4 @@ default_wrapper_specs = Dict{String, Vector{Pair{Type{T} where T <: AbstractGymW
 # #---
 # actions(env)
 #---
+end
