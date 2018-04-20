@@ -1,6 +1,7 @@
 import Images: imresize, normedview, N0f8
 import ImageTransformations: imresize!
-export GreyMeanWrapper, GreyChanWrapper, DownsizeWrapper, MultiFrameWrapper
+export GreyMeanWrapper, GreyChanWrapper, DownsizeWrapper, MultiFrameWrapper, state_img
+using PyCall
 
 # --------------------------------
 # Greyscale Wrappers
@@ -140,7 +141,7 @@ end
 
 """
 `state_img{N}(wrpenv::MultiFrameWrapper{T, N})`
-Get an image representation of the state
+Get an image representation of the state for rendering
 returns state(env) with frames stacked side by side
 """
 function state_img{T, N}(wrpenv::MultiFrameWrapper{T, N})

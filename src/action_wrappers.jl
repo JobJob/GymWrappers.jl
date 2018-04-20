@@ -40,6 +40,7 @@ function Reinforce.step!{T, N}(wrpenv::MaxAndSkipWrapper{T, N}, action)
     """Repeat action, sum reward, and max over last observations."""
     total_reward = 0.0
     done = false
+    local s
     for i in 1:wrpenv.nskip
         reward, s = step!(wrpenv.env, action)
         done = Reinforce.finished(wrpenv.env)
