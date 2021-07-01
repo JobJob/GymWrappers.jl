@@ -1,4 +1,4 @@
-import Images: imresize, normedview, N0f8
+import Images: imresize, normedview
 import ImageTransformations: imresize!
 export GreyMeanWrapper, GreyChanWrapper, DownsizeWrapper, MultiFrameWrapper, state_img
 using PyCall
@@ -6,19 +6,21 @@ using PyCall
 # --------------------------------
 # Greyscale Wrappers
 # --------------------------------
-mat_like_state(env) = Matrix{N0f8}(size(state(env))[1:2])
+mat_like_state(::Type{T}, env) where T = Matrix{T}(size(state(env))[1:2])
 
 abstract type GreyscaleGymWrapper <: AbstractGymWrapper end
 
 """
-`GreyMeanWrapper(env::AbstractGymEnv, zero_centre::Bool = false)`
+`GreyMeanWrapper(env::AbstractGymEnv, ::Type{T} = UInt8, zero_centre::Bool = false)`
 
 For each pixel in `state(env)`, assumed to be encoded as RGB UInt8s in [0,255].
 Average the R, G, and B channels, and normalise so that
 `state(GreyMeanWrapper(env))` is a Matrix with all values in the interval [0,1]
 
-If `zero_centre` is true subtract 0.5 from each channel, so that all values
-lie in the interval [-0.5, 0.5]
+If `zero_centre` is true subtract 0.5 from each channel, so that all values lie
+in the interval [-0.5, 0.5]. Accordingly, `zero_centre` is not supported for
+types that don't support negative values, e.g. `UInt8` and Images.jl's
+FixedPoint types.
 """
 struct GreyMeanWrapper{T} <: GreyscaleGymWrapper
     env::AbstractGymEnv
@@ -26,18 +28,51 @@ struct GreyMeanWrapper{T} <: GreyscaleGymWrapper
     img::Matrix{T} # initialise on creation, update each `step!`
 end
 
-function GreyMeanWrapper(env::AbstractGymEnv, zero_centre::Bool = false)
-    img = mat_like_state(env)
+function GreyMeanWrapper(env::AbstractGymEnv, ::Type{T} = UInt8,
+  zero_centre::Bool = false) where T
+    img = mat_like_state(T, env)
     rgb2greymean!(img, state(env), zero_centre)
-    GreyMeanWrapper(env, zero_centre, img)
+    GreyMeanWrapper{T}(env, zero_centre, img)
 end
 
-function rgb2greymean!(wrap_img, state_img, zero_centre::Bool)
-    zero_factor = zero_centre ? UInt8(128) : UInt8(0)
+# @generated function rgb2greymean!(wrap_img::Matrix{FPT}, state_img::Array{UT,3}, zero_centre::Bool) where
+#   {UT <: Unsigned, FPT <: Normed}
+#     @assert sizeof(UT) == sizeof(FPT)
+#     # must divide each UInt8 by 3 rather than their sum, to avoid overflow
+#     quote
+#         wrap_img .= reinterpret.($FPT,
+#                       @view(state_img[:,:,1]) .÷ 0x3 .+
+#                       @view(state_img[:,:,2]) .÷ 0x3 .+
+#                       @view(state_img[:,:,3]) .÷ 0x3
+#                     )
+#     end
+# end
+
+# fast conversion of PyArray{UInt8} to Array{N0f8}
+# @benchmark unsafe_wrap(Array, convert(Ptr{N0f8}, pyimg.data), size(pyimg))
+
+"""
+Returned array's eltype == input array's eltype == UInt8
+"""
+function rgb2greymean!(wrap_img::Matrix{UInt8}, state_img::AbstractArray{UInt8,3},
+    zero_centre::Bool)
     # must divide each UInt8 by 3 rather than their sum, to avoid overflow
-    wrap_img .= ((@view(state_img[:,:,1]) .÷ 0x3 .+
-                  @view(state_img[:,:,2]) .÷ 0x3 .+
-                  @view(state_img[:,:,3]) .÷ 0x3) .- zero_centre) |> normedview
+    wrap_img .= (@view(state_img[:,:,1]) .÷ 0x3 .+
+                 @view(state_img[:,:,2]) .÷ 0x3 .+
+                 @view(state_img[:,:,3]) .÷ 0x3)
+end
+
+"""
+Returned array's eltype (TR) != input array's eltype (TI)
+and TR <: AbstractFloat and TI <: Integer (pixel vals ∈ [0,255]),
+so we scale by 255.0 so output pixels are ∈ [0, 1.0]
+"""
+function rgb2greymean!(wrap_img::Matrix{TR}, state_img::AbstractArray{TI,3},
+    zero_centre::Bool) where {TR <: AbstractFloat, TI <: Integer}
+    centre_const = zero_centre ? TR(0.5) : TR(0.0)
+    wrap_img .= (TR.(@view(state_img[:,:,1])) .+
+                 TR.(@view(state_img[:,:,2])) .+
+                 TR.(@view(state_img[:,:,3]))) ./ TR(255.0*3.0)
 end
 
 function Reinforce.step!(wrpenv::GreyMeanWrapper, args...)
@@ -194,13 +229,12 @@ end
 # Downsize Wrapper
 # --------------------------------
 """
-DownsizeWrapper=>(scale::Tuple{Float64})
+DownsizeWrapper=>(newsize::Tuple{Int,Int})
 
-Return an wrapped env such that all channels of state(env) are scaled by
-`scaler`. The input env's state is assumed to be of size `(h, w, c)` where w,h
+Return an wrapped env such that all channels of state(env) are scaled to
+`newsize`. The input env's state is assumed to be of size `(h, w, c)` where w,h
 are the width and height of the image, and c is the number of channels).  The
-wrapped state(env), will thus have size
-`(round(h*scaler[1]), round(w*scaler[2]), c)`
+wrapped state(env), will thus have size `newsize`
 
 Assumes state(env) stays constant size.
 """
@@ -215,8 +249,20 @@ end
 function DownsizeWrapper(env, scaler = 0.5)
     newsize = size(state(env)) |> collect
     newsize[1:2] .= round.(newsize[1:2].*scaler)
-    DownsizeWrapper(env, imresize(state(env), Tuple(newsize)))
+    DownsizeWrapper(env, Tuple(newsize))
 end
+
+"""
+`DownsizeWrapper(env, newsize::Tuple{Int,Int})`
+"""
+function DownsizeWrapper(env, newsize::Tuple{Int,Int})
+    DownsizeWrapper(env, imresize(state(env), newsize))
+end
+
+"""
+`DownsizeWrapper(env, newsize::Int...)`
+"""
+DownsizeWrapper(env, newsize::Int...) = DownsizeWrapper(env, newsize)
 
 """
 `Reinforce.state(wrpenv::DownsizeWrapper)`

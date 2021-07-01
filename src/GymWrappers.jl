@@ -1,12 +1,12 @@
 module GymWrappers
 
 using OpenAIGym
-import OpenAIGym: AbstractGymEnv
+import OpenAIGym: AbstractGymEnv, actionset
 import Reinforce: reward, total_reward
 
 abstract type AbstractGymWrapper <: AbstractGymEnv end
 
-export AbstractGymWrapper, gymenv, getwrapper, maybe_wrap
+export AbstractGymEnv, AbstractGymWrapper, gymenv, getwrapper, maybe_wrap
 # other exports in included files
 
 # Defaults
@@ -85,7 +85,7 @@ default_wrapper_specs = Dict{String, Vector{Pair{Type{T} where T <: AbstractGymW
         EpisodicLifeWrapper=>(),
         GreyMeanWrapper=>(),
         # GreyChanWrapper=>(2,),
-        DownsizeWrapper=>((0.4, 0.525),), # (210, 160) -> (84, 84)
+        DownsizeWrapper=>(84, 84), # (210, 160) -> (84, 84)
         MaxAndSkipWrapper=>(4,), # repeat action for 4 frames
         MultiFrameWrapper=>(4,), # stack last 4 frames
     ]

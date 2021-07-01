@@ -25,7 +25,7 @@ function EpisodicLifeWrapper(env::AbstractGymEnv)
     EpisodicLifeWrapper(env, ale_lives(env), false, true)
 end
 
-ale_lives(env::AbstractGymEnv) = gymenv(env).pyenv[:unwrapped][:ale][:lives]()
+ale_lives(env::AbstractGymEnv) = gymenv(env).pyenv["unwrapped"]["ale"]["lives"]()
 
 function Reinforce.step!(wrpenv::EpisodicLifeWrapper, s, a)
     r, s′ = Reinforce.step!(wrpenv.env, s, a)
