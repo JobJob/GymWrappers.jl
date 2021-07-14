@@ -57,7 +57,7 @@ Which will call `ActionSetWrapper(env, [2,3])`, `GreyMeanWrapper(env, false)`
 """
 function maybe_wrap(env::AbstractGymEnv; wrapper_specs=default_wrapper_specs,
                     wrap_deepmind=true)
-    gamename, gamever = split(env.name, "-")
+    gamename, gamever = env.name, env.ver
     replace(gamename, r"(NoFrameskip|Deterministic)","")
     wrapped_env = env
     all_wrappers = get(wrapper_specs, gamename, [])
